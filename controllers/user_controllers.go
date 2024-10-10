@@ -33,6 +33,30 @@ type LoginInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// UserProfile is a protected route to get user profile
+// @Summary Get user profile
+// @Description Fetch the profile of the logged-in user
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} ErrorResponse
+// @Router /protected/profile [get]
+func UserProfile(c *gin.Context) {
+	// Retrieve the user ID from the context (set by the JWT middleware)
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "User not found"})
+		return
+	}
+
+	// For now, just return a simple response with the user ID
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Welcome to your profile",
+		"user_id": userID,
+	})
+}
+
 // Login handles user login
 // @Summary Log in a user
 // @Description Authenticate user and return JWT token

@@ -4,6 +4,7 @@ import (
 	"avidlogic/controllers"
 	"avidlogic/database"
 	_ "avidlogic/docs"
+	"avidlogic/middleware" // Import JWT middleware
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,9 @@ import (
 // @description This is a user management API for AvidLogic.
 // @host localhost:8080
 // @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 
 func main() {
 	// Load environment variables from .env file
@@ -36,7 +40,14 @@ func main() {
 
 	// User routes
 	router.POST("/users", controllers.CreateUser)
-	router.POST("/login", controllers.Login) // New login route
+	router.POST("/login", controllers.Login)
+
+	// Protected routes (JWT required)
+	protected := router.Group("/protected")
+	protected.Use(middleware.AuthMiddleware()) // Use JWT middleware
+	{
+		protected.GET("/profile", controllers.UserProfile) // Example protected route
+	}
 
 	router.Run(":8080")
 }

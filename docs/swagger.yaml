@@ -80,6 +80,27 @@ paths:
       summary: Log in a user
       tags:
       - Users
+  /protected/profile:
+    get:
+      description: Fetch the profile of the logged-in user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - Users
   /users:
     post:
       consumes:
@@ -110,4 +131,9 @@ paths:
       summary: Create a new user
       tags:
       - Users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

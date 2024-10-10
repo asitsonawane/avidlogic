@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"avidlogic/auth" // Import the auth package for JWT validation
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,15 +19,13 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Extract the token from the "Bearer <token>" format
-		parts := strings.Split(authHeader, "Bearer ")
-		if len(parts) != 2 {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
-			c.Abort()
-			return
+		// If the Bearer prefix is missing, add it automatically
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			authHeader = "Bearer " + authHeader
 		}
 
-		token := parts[1]
+		// Extract the token
+		token := strings.Split(authHeader, "Bearer ")[1]
 
 		// Validate the token
 		claims, err := auth.ValidateJWT(token)
