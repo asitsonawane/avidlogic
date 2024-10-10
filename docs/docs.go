@@ -64,6 +64,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/projects": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a new project to the user's account (personal or organizational repos)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Add a new project",
+                "parameters": [
+                    {
+                        "description": "Project Details",
+                        "name": "project",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.AddProjectInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/protected/profile": {
             "get": {
                 "security": [
@@ -146,6 +197,31 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controllers.AddProjectInput": {
+            "type": "object",
+            "required": [
+                "pat",
+                "project_type",
+                "repo_names",
+                "username"
+            ],
+            "properties": {
+                "pat": {
+                    "type": "string"
+                },
+                "project_type": {
+                    "description": "'personal' or 'org'",
+                    "type": "string"
+                },
+                "repo_names": {
+                    "description": "Comma-separated repo names",
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.CreateUserInput": {
             "type": "object",
             "required": [
@@ -184,6 +260,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }

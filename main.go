@@ -45,6 +45,9 @@ func main() {
 	router.POST("/users", controllers.CreateUser)
 	router.POST("/login", controllers.Login)
 
+	// Project routes (Add project - requires JWT)
+	router.POST("/projects", middleware.AuthMiddleware(), controllers.AddProject)
+
 	// Protected routes (JWT required)
 	protected := router.Group("/protected")
 	protected.Use(middleware.AuthMiddleware()) // Use JWT middleware

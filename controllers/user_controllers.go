@@ -20,6 +20,11 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// SuccessResponse defines the structure of the success response
+type SuccessResponse struct {
+	Message string `json:"message"`
+}
+
 // Input struct for creating a user
 type CreateUserInput struct {
 	Username string `json:"username" binding:"required"`

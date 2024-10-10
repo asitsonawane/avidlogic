@@ -1,5 +1,23 @@
 basePath: /
 definitions:
+  controllers.AddProjectInput:
+    properties:
+      pat:
+        type: string
+      project_type:
+        description: '''personal'' or ''org'''
+        type: string
+      repo_names:
+        description: Comma-separated repo names
+        type: string
+      username:
+        type: string
+    required:
+    - pat
+    - project_type
+    - repo_names
+    - username
+    type: object
   controllers.CreateUserInput:
     properties:
       email:
@@ -27,6 +45,11 @@ definitions:
     required:
     - email
     - password
+    type: object
+  controllers.SuccessResponse:
+    properties:
+      message:
+        type: string
     type: object
   models.User:
     properties:
@@ -80,6 +103,39 @@ paths:
       summary: Log in a user
       tags:
       - Users
+  /projects:
+    post:
+      consumes:
+      - application/json
+      description: Adds a new project to the user's account (personal or organizational
+        repos)
+      parameters:
+      - description: Project Details
+        in: body
+        name: project
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.AddProjectInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add a new project
+      tags:
+      - Projects
   /protected/profile:
     get:
       description: Fetch the profile of the logged-in user
