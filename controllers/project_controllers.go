@@ -38,22 +38,43 @@ func AddProject(c *gin.Context) {
 		return
 	}
 
-	userID, _ := c.Get("userID")
+	// Step 1: Validate the PAT
+	validPat, err := ValidatePAT(input.PAT)
+	if err != nil || !validPat {
+		c.JSON(400, ErrorResponse{Error: "Invalid GitHub PAT"})
+		return
+	}
 
-	// Split the repo names (comma-separated) into a slice
-	repoNames := strings.Split(input.RepoNames, ",")
-
-	// Validate PAT for each repository
-	for _, repo := range repoNames {
-		repo = strings.TrimSpace(repo)
-		valid, err := ValidatePAT(input.PAT, input.Username, repo)
-		if err != nil || !valid {
-			c.JSON(400, ErrorResponse{Error: "Invalid PAT or no access to repository: " + repo})
+	// Step 2: Validate the GitHub user or organization
+	if input.ProjectType == "personal" {
+		// Validate the GitHub user
+		validUser, err := ValidateUser(input.Username)
+		if err != nil || !validUser {
+			c.JSON(400, ErrorResponse{Error: "GitHub user not found"})
+			return
+		}
+	} else if input.ProjectType == "org" {
+		// Validate the organization
+		validOrg, err := ValidateOrg(input.PAT, input.Username)
+		if err != nil || !validOrg {
+			c.JSON(400, ErrorResponse{Error: "GitHub organization not found or no access"})
 			return
 		}
 	}
 
-	// Create the new project using the models.UserProject struct
+	// Step 3: Validate PAT for each repository
+	repoNames := strings.Split(input.RepoNames, ",")
+	for _, repo := range repoNames {
+		repo = strings.TrimSpace(repo)
+		validRepo, err := ValidateRepoAccess(input.PAT, input.Username, repo)
+		if err != nil || !validRepo {
+			c.JSON(400, ErrorResponse{Error: "No access to repository: " + repo})
+			return
+		}
+	}
+
+	// Step 4: Add the project to the database if all checks pass
+	userID, _ := c.Get("userID")
 	newProject := models.UserProject{
 		UserID:      userID.(string),
 		ProjectType: input.ProjectType,
@@ -65,8 +86,7 @@ func AddProject(c *gin.Context) {
 
 	query := `INSERT INTO user_projects (user_id, project_type, username, pat, repo_names, created_at) 
               VALUES ($1, $2, $3, $4, $5, $6)`
-
-	_, err := database.DB.Exec(context.Background(), query, newProject.UserID, newProject.ProjectType, newProject.Username, newProject.PAT, newProject.RepoNames, newProject.CreatedAt)
+	_, err = database.DB.Exec(context.Background(), query, newProject.UserID, newProject.ProjectType, newProject.Username, newProject.PAT, newProject.RepoNames, newProject.CreatedAt)
 	if err != nil {
 		c.JSON(500, ErrorResponse{Error: "Failed to add project"})
 		return
@@ -75,13 +95,61 @@ func AddProject(c *gin.Context) {
 	c.JSON(200, SuccessResponse{Message: "Project added successfully"})
 }
 
-// GitHubRepoResponse is the response structure from GitHub API
-type GitHubRepoResponse struct {
-	FullName string `json:"full_name"`
+// ValidatePAT checks if the provided PAT is valid by calling the /user GitHub API
+func ValidatePAT(pat string) (bool, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set("Authorization", "token "+pat)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return false, err
+	}
+
+	defer resp.Body.Close()
+	return true, nil
 }
 
-// ValidatePAT checks if the PAT can access the given repository
-func ValidatePAT(pat, owner, repo string) (bool, error) {
+// ValidateUser checks if the GitHub user exists
+func ValidateUser(username string) (bool, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "https://api.github.com/users/"+username, nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return false, err
+	}
+
+	defer resp.Body.Close()
+	return true, nil
+}
+
+// ValidateOrg checks if the GitHub organization exists
+func ValidateOrg(pat, org string) (bool, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "https://api.github.com/orgs/"+org, nil)
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set("Authorization", "token "+pat)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return false, err
+	}
+
+	defer resp.Body.Close()
+	return true, nil
+}
+
+// ValidateRepoAccess checks if the PAT can access the given repository
+func ValidateRepoAccess(pat, owner, repo string) (bool, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+owner+"/"+repo, nil)
 	if err != nil {
