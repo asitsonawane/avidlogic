@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"avidlogic/database" // Import the new database package
+	"avidlogic/auth"
+	"avidlogic/database"
 	"avidlogic/models"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,57 @@ type CreateUserInput struct {
 	Username string `json:"username" binding:"required"`
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+// LoginInput defines the fields required for login
+type LoginInput struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// Login handles user login
+// @Summary Log in a user
+// @Description Authenticate user and return JWT token
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param user body LoginInput true "Login credentials"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /login [post]
+func Login(c *gin.Context) {
+	var input LoginInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid input"})
+		return
+	}
+
+	// Check if the user exists
+	var user models.User
+	err := database.DB.QueryRow(context.Background(), "SELECT id, password_hash FROM users WHERE email=$1", input.Email).Scan(&user.ID, &user.PasswordHash)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid credentials"})
+		return
+	}
+
+	// Compare the provided password with the stored hashed password
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid credentials"})
+		return
+	}
+
+	// Generate JWT token
+	token, err := auth.GenerateJWT(user.ID.String())
+	if err != nil {
+		log.Printf("Error generating JWT: %v", err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Could not generate token"})
+		return
+	}
+
+	// Return the token to the client
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
 // HashPassword hashes the password using bcrypt

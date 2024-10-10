@@ -36,6 +36,7 @@ func main() {
 
 	// User routes
 	router.POST("/users", controllers.CreateUser)
+	router.POST("/login", controllers.Login) // New login route
 
 	router.Run(":8080")
 }
