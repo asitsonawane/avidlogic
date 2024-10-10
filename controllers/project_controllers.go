@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"avidlogic/database"
-	"avidlogic/models" // Now using models.UserProject
+	"avidlogic/models"
 	"context"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +40,19 @@ func AddProject(c *gin.Context) {
 
 	userID, _ := c.Get("userID")
 
+	// Split the repo names (comma-separated) into a slice
+	repoNames := strings.Split(input.RepoNames, ",")
+
+	// Validate PAT for each repository
+	for _, repo := range repoNames {
+		repo = strings.TrimSpace(repo)
+		valid, err := ValidatePAT(input.PAT, input.Username, repo)
+		if err != nil || !valid {
+			c.JSON(400, ErrorResponse{Error: "Invalid PAT or no access to repository: " + repo})
+			return
+		}
+	}
+
 	// Create the new project using the models.UserProject struct
 	newProject := models.UserProject{
 		UserID:      userID.(string),
@@ -58,4 +73,28 @@ func AddProject(c *gin.Context) {
 	}
 
 	c.JSON(200, SuccessResponse{Message: "Project added successfully"})
+}
+
+// GitHubRepoResponse is the response structure from GitHub API
+type GitHubRepoResponse struct {
+	FullName string `json:"full_name"`
+}
+
+// ValidatePAT checks if the PAT can access the given repository
+func ValidatePAT(pat, owner, repo string) (bool, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+owner+"/"+repo, nil)
+	if err != nil {
+		return false, err
+	}
+
+	// Add the Authorization header with the PAT
+	req.Header.Set("Authorization", "token "+pat)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return false, err
+	}
+
+	defer resp.Body.Close()
+	return true, nil
 }
