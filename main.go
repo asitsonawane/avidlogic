@@ -4,7 +4,7 @@ import (
 	"avidlogic/controllers"
 	"avidlogic/database"
 	_ "avidlogic/docs"
-	"avidlogic/middleware" // Import JWT middleware
+	"avidlogic/middleware" // Import JWT and Logging middleware
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +34,9 @@ func main() {
 	defer database.CloseDB()
 
 	router := gin.Default()
+
+	// Add request logging middleware
+	router.Use(middleware.RequestLogger())
 
 	// Swagger route
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

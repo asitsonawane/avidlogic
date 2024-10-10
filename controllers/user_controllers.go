@@ -33,6 +33,12 @@ type LoginInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// Centralized error logging and response
+func handleError(c *gin.Context, status int, message string) {
+	log.Printf("[Error] %s | Status: %d", message, status)
+	c.JSON(status, ErrorResponse{Error: message})
+}
+
 // UserProfile is a protected route to get user profile
 // @Summary Get user profile
 // @Description Fetch the profile of the logged-in user
@@ -79,14 +85,14 @@ func Login(c *gin.Context) {
 	var user models.User
 	err := database.DB.QueryRow(context.Background(), "SELECT id, password_hash FROM users WHERE email=$1", input.Email).Scan(&user.ID, &user.PasswordHash)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid credentials"})
+		handleError(c, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
 	// Compare the provided password with the stored hashed password
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid credentials"})
+		handleError(c, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
@@ -94,7 +100,7 @@ func Login(c *gin.Context) {
 	token, err := auth.GenerateJWT(user.ID.String())
 	if err != nil {
 		log.Printf("Error generating JWT: %v", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Could not generate token"})
+		handleError(c, http.StatusInternalServerError, "Could not generate token")
 		return
 	}
 
