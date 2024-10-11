@@ -21,7 +21,6 @@ import (
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-
 func main() {
 	// Load environment variables from .env file
 	err := godotenv.Load()
